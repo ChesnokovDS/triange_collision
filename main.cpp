@@ -78,7 +78,6 @@ struct triangle
     const point p3;
 };
 
-
 double Dot(const vec & v1, const vec & v2)
 {
     return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
@@ -106,11 +105,10 @@ bool Intersect(const point & p1, const point & p2)
 
 bool Intersect(const section & s, const point & p)
 {
-    double dx = (s.p2.x - p.x) / (s.p2.x - s.p1.x);
-    double dy = (s.p2.y - p.y) / (s.p2.y - s.p1.y);
-    double dz = (s.p2.z - p.z) / (s.p2.z - s.p1.z);
-    return CheckInterval(dx, 0.0, 1.0) && FuzzyEqual(dx, dy) && FuzzyEqual(dx, dz);
-//    return CheckInterval(dx, 0.0, 1.0) && CheckInterval(dy, 0.0, 1.0) && CheckInterval(dz, 0.0, 1.0)&& FuzzyEqual(dx, dy) && FuzzyEqual(dx, dz) && FuzzyEqual(dy, dz);
+    vec v1(p, s.p1);
+    vec v2(p, s.p2);
+    double sp = Dot(v1, v2);
+    return FuzzyEqual(0.0, Cross(v1, v2).len()) && (FuzzyEqual(sp, 0.0) || sp < 0);
 }
 
 bool Intersect(const point & p, const section & s)
@@ -118,23 +116,25 @@ bool Intersect(const point & p, const section & s)
     return Intersect(s, p);
 }
 
-bool Intersect(const section & s1, const section & s2)
+bool LineIntersectSection(const section & s1, const section & s2)
 {
-    point p11 = s1.p1;
-    point p12 = s1.p2;
-    point p21 = s2.p1;
-    point p22 = s2.p2;
+    vec vc1 = Cross(vec(s1.p1, s2.p1), vec(s1.p1, s1.p2));
+    vec vc2 = Cross(vec(s1.p1, s1.p2), vec(s1.p1, s2.p2));
+    double orient = vc1.len() * vc2.len();
+    return orient > 0.0 || FuzzyEqual(0.0, orient);
+}
 
-    // find a and b from [0, 1]
-    // a*p11 + (1-a)*p12 = b*p21 + (1-b)*p22
+bool Intersect(const section & s1, const section & s2)
+{    vec v11(s1.p1, s2.p1);
+     vec v12(s1.p1, s2.p2);
+     vec v21(s1.p2, s2.p1);
+     vec v22(s1.p2, s2.p2);
+     vec vc1 = Cross(v11, v12);
+     vec vc2 = Cross(v21, v22);
+     if (!FuzzyEqual(0.0, Cross(vc1, vc2).len()))
+         return false; // отрезки лежат в разных плоскостях
 
-    double bXY =   ((p22.y - p12.y) * (p11.x - p12.x) - (p22.x - p12.x) * (p11.y - p12.y)) / ((p21.x - p22.x) * (p11.y - p12.y) - (p21.y - p22.y) * (p11.x - p12.x));
-    double bXZ =   ((p22.z - p12.z) * (p11.x - p12.x) - (p22.x - p12.x) * (p11.z - p12.z)) / ((p21.x - p22.x) * (p11.z - p12.z) - (p21.z - p22.z) * (p11.x - p12.x));
-    if (!FuzzyEqual(bXY, bXZ) || !CheckInterval(bXY, 0.0, 1.0))
-        return false;
-
-    double a = (bXY * (p21.x - p22.x) - (p22.x - p12.x)) / (p11.x - p12.x);
-    return CheckInterval(a, 0.0, 1.0);
+    return LineIntersectSection(s1, s2) && LineIntersectSection(s2, s1);
 }
 
 bool Intersect(const triangle & t, const point & p)
@@ -263,4 +263,3 @@ int main()
     cout << "End of test." << endl;
     return 0;
 }
-
